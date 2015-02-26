@@ -22,7 +22,7 @@ class EMTrainer():
 
 	def wordTrans(self):
 		for i in xrange(len(self.spanishList)):
-			
+			print i	
 			eng_sent = self.englishList[i].replace(" " + u'\u2019' + " ", "'")
 			#.translate(string.maketrans("",""), string.punctuation) (translate line not needed with
 			# regexes below, also stopped compling for some reason replace handles '
@@ -33,12 +33,22 @@ class EMTrainer():
 			span_words = span_sent.split(" ")
 
 			#loops below make bag of words, special cases yet to be accounted for 1 letter accented words? weird markers such as &quote
+			#word.decode("utf-8") # instead of just word
 			for word in eng_words:
 				if re.search('[a-zA-Z]', word) == None:
 					eng_words.remove(word)
 			for word in span_words:
                                 if re.search('[a-zA-Z]', word) == None:
                                         span_words.remove(word)
+			for eng_word in eng_words:
+				if eng_word.encode('utf-8') not in self.transProbs:
+                    			self.transProbs[eng_word.encode('utf-8')] = collections.Counter()
+				for i in xrange(len(span_words)):
+					self.transProbs[eng_word.encode('utf-8')][span_words[i].encode('utf-8')] += 1
+					if i < len(span_words) - 1:
+						self.transProbs[eng_word.encode("utf-8")][span_words[i].encode("utf-8") + " " + span_words[i + 1].encode("utf-8")] += 1
+					if i < len(span_words) - 2:
+                                                self.transProbs[eng_word.encode("utf-8")][span_words[i].encode("utf-8") + " " + span_words[i + 1].encode("utf-8") + " " +span_words[i+2].encode("utf-8")] += 1
 			''' here are examples of how to use encoding, doooo not delete or I'll cry
 			if u"\u00F3" in span_sent:
 				print span_sent.encode('utf-8')

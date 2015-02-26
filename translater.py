@@ -40,15 +40,16 @@ class EMTrainer():
 			for word in span_words:
                                 if re.search('[a-zA-Z]', word) == None:
                                         span_words.remove(word)
-			for eng_word in eng_words:
-				if eng_word.encode('utf-8') not in self.transProbs:
-                    			self.transProbs[eng_word.encode('utf-8')] = collections.Counter()
-				for i in xrange(len(span_words)):
-					self.transProbs[eng_word.encode('utf-8')][span_words[i].encode('utf-8')] += 1
-					if i < len(span_words) - 1:
-						self.transProbs[eng_word.encode("utf-8")][span_words[i].encode("utf-8") + " " + span_words[i + 1].encode("utf-8")] += 1
-					if i < len(span_words) - 2:
-                                                self.transProbs[eng_word.encode("utf-8")][span_words[i].encode("utf-8") + " " + span_words[i + 1].encode("utf-8") + " " +span_words[i+2].encode("utf-8")] += 1
+			for span_word in span_words:
+				if span_word.encode('utf-8') not in self.transProbs:
+                    			self.transProbs[span_word.encode('utf-8')] = collections.Counter()
+				length = len(eng_words)
+				for i in xrange(length):
+					self.transProbs[span_word.encode('utf-8')][eng_words[i].encode('utf-8')] += 1
+					if i < length - 1:
+						self.transProbs[span_word.encode("utf-8")][eng_words[i].encode("utf-8") + " " + eng_words[i + 1].encode("utf-8")] += 1
+					if i < length - 2:
+                                                self.transProbs[span_word.encode("utf-8")][eng_words[i].encode("utf-8") + " " + eng_words[i + 1].encode("utf-8") + " " +eng_words[i+2].encode("utf-8")] += 1
 			''' here are examples of how to use encoding, doooo not delete or I'll cry
 			if u"\u00F3" in span_sent:
 				print span_sent.encode('utf-8')
@@ -56,6 +57,6 @@ class EMTrainer():
 				eng_sent = eng_sent.replace(" " + u'\u2019' + " ", "'")
 				print eng_sent.encode('utf-8')
 			'''
-
+		print self.transProbs['de']
 x = EMTrainer()
 x.wordTrans()

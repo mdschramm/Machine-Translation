@@ -1,4 +1,4 @@
-#/usr/bin/env python
+#usr/bin/env python
 # encoding: utf-8
 # CS124 Homework 6 Translate
 # David Beam (dbeam@stanford.edu) Mark Schramm (mschramm@stanford.edu)
@@ -11,15 +11,92 @@ def loadList(file_name):
     with io.open(file_name, "r", encoding="utf-8") as f:
 	l = [line.strip() for line in f]
     return l
-
-
+ 
+def normalize(vec):
+	mag = sum(vec)
+	for i in xrange(len(vec)):
+		vec[i] = vec[i]/mag
 class EMTrainer():
 	def __init__(self):
 		self.englishList = loadList("es-en/train/europarl-v7.es-en.en")
 		self.spanishList = loadList("es-en/train/europarl-v7.es-en.es")
-		self.transCounts = collections.Counter()
+		self.transCounts = {}#collections.Counter()
 		self.transProbs = {}
-
+	def alignMonster(self):
+		masterEngWords = []
+		masterSpanWords = []
+		#builds list for table of unique words, processes sentences for later use
+		for i in xrange(len(self.spanishList)):
+                        eng_sent = self.englishList[i].replace(" " + u'\u2019' + " ", "'")
+			span_sent = self.spanishList[i]
+                        eng_words = eng_sent.split(" ")
+                        span_words = span_sent.split(" ")
+			for word in eng_words:
+                                if re.search('[a-zA-Z]', word) == None:
+                                        eng_words.remove(word)
+                        for word in span_words:
+                                if re.search('[a-zA-Z]', word) == None:
+                                        span_words.remove(word)
+			#updates sentence in original list to contained stripped punctuation free words
+			self.englishList[i] = eng_words
+			self.spanishList[i] = span_words
+			for word in span_words:
+				if word not in self.transCounts:
+					self.transCounts[word] = {}
+					self.transProbs[word] = {}
+				for eng_word in eng_words:
+					if eng_word not in self.transCounts[word]:
+						self.transCounts[word][eng_word] = 1.0
+						self.transProbs[word][eng_word] = 0.0
+			if i % 1000 == 0:
+                                print i
+		for span in self.transCounts:
+			for eng_word in self.transCounts[span]:
+				self.transCounts[span][eng_word] = 1.0/len(self.transCounts[span])
+			#builds masterlist
+			'''
+			for word in span_words:
+				if word not in masterSpanWords:
+					masterSpanWords.append(word)
+			for word in eng_words:
+				if word not in masterEngWords:
+					masterEngWords.append(word)
+			if i % 1000 == 0:
+				print i
+		print 'out of loop 1'
+		length = len(masterEngWords)
+		#itiializes translation table
+		for word in masterSpanWords:
+			self.transCounts[word] = {}
+			self.transProbs[word] = {}
+			for eng_word in masterEngWords:
+				self.transCounts[word][eng_word] = 1.0/length
+				self.transProbs[word][eng_word] = 0.0
+		
+		print 'out of loop 2'
+		'''
+		length = len(self.englishList)
+		for x in xrange(length):
+			eng_words = self.englishList[x]
+			span_words = self.spanishList[x]
+			prod = 1.0
+			sums = []
+			for ej in eng_words:
+				term = 0.0
+				for si in span_words:
+					term += self.transCounts[si][ej]
+				sums.append(term)
+				prod *= term
+			for i in xrange(len(eng_words)):
+				pairs = []
+				for j in xrange(len(span_words)):
+					pairs.append(self.transCounts[span_words[j]][eng_words[i]] * prod/sums[i])
+				normalize(pairs)
+				for j in xrange(len(span_words)):
+					self.transProbs[span_words[j]][eng_words[i]] += pairs[j]
+			print 'transProbs ', x
+		#print self.transCounts['de']
+		print self.transProbs['el']
 	def wordTrans(self):
 		for i in xrange(1000):#xrange(len(self.spanishList)):
 			print i	
@@ -76,5 +153,5 @@ class EMTrainer():
 			print key
 		print self.transProbs['comida']
 x = EMTrainer()
-x.wordTrans()
-x.normalize()
+x.alignMonster()
+#x.normalize()

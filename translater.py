@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#/usr/bin/env python
 # encoding: utf-8
 # CS124 Homework 6 Translate
 # David Beam (dbeam@stanford.edu) Mark Schramm (mschramm@stanford.edu)
@@ -17,11 +17,11 @@ class EMTrainer():
 	def __init__(self):
 		self.englishList = loadList("es-en/train/europarl-v7.es-en.en")
 		self.spanishList = loadList("es-en/train/europarl-v7.es-en.es")
-		self.transProbs = collections.Counter()
-
+		self.transCounts = collections.Counter()
+		self.transProbs = {}
 
 	def wordTrans(self):
-		for i in xrange(len(self.spanishList)):
+		for i in xrange(1000):#xrange(len(self.spanishList)):
 			print i	
 			eng_sent = self.englishList[i].replace(" " + u'\u2019' + " ", "'")
 			#.translate(string.maketrans("",""), string.punctuation) (translate line not needed with
@@ -41,15 +41,15 @@ class EMTrainer():
                                 if re.search('[a-zA-Z]', word) == None:
                                         span_words.remove(word)
 			for span_word in span_words:
-				if span_word.encode('utf-8') not in self.transProbs:
-                    			self.transProbs[span_word.encode('utf-8')] = collections.Counter()
+				if span_word.encode('utf-8') not in self.transCounts:
+                    			self.transCounts[span_word.encode('utf-8')] = collections.Counter()
 				length = len(eng_words)
 				for i in xrange(length):
-					self.transProbs[span_word.encode('utf-8')][eng_words[i].encode('utf-8')] += 1
+					self.transCounts[span_word.encode('utf-8')][eng_words[i].encode('utf-8')] += 1
 					if i < length - 1:
-						self.transProbs[span_word.encode("utf-8")][eng_words[i].encode("utf-8") + " " + eng_words[i + 1].encode("utf-8")] += 1
+						self.transCounts[span_word.encode("utf-8")][eng_words[i].encode("utf-8") + " " + eng_words[i + 1].encode("utf-8")] += 1
 					if i < length - 2:
-                                                self.transProbs[span_word.encode("utf-8")][eng_words[i].encode("utf-8") + " " + eng_words[i + 1].encode("utf-8") + " " +eng_words[i+2].encode("utf-8")] += 1
+                                                self.transCounts[span_word.encode("utf-8")][eng_words[i].encode("utf-8") + " " + eng_words[i + 1].encode("utf-8") + " " +eng_words[i+2].encode("utf-8")] += 1
 			''' here are examples of how to use encoding, doooo not delete or I'll cry
 			if u"\u00F3" in span_sent:
 				print span_sent.encode('utf-8')
@@ -57,6 +57,24 @@ class EMTrainer():
 				eng_sent = eng_sent.replace(" " + u'\u2019' + " ", "'")
 				print eng_sent.encode('utf-8')
 			'''
-		print self.transProbs['de']
+		#print self.transCounts['de']
+	def normalize(self):
+		i = 0
+		print self.transCounts
+		print "halp"
+		self.transProbs = dict(self.transCounts)
+		#print self.transProbs['de']
+		for span_word in self.transProbs:
+			mag = 0
+			for eng_word in self.transCounts[span_word]:
+				mag += self.transCounts[span_word][eng_word]
+			for eng_word in self.transProbs[span_word]:
+				self.transProbs[span_word][eng_word] = float(self.transProbs[span_word][eng_word])/float(mag)
+			i += 1
+			print i
+		for key in self.transProbs:
+			print key
+		print self.transProbs['comida']
 x = EMTrainer()
 x.wordTrans()
+x.normalize()

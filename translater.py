@@ -3,8 +3,18 @@
 # CS124 Homework 6 Translate
 # David Beam (dbeam@stanford.edu) Mark Schramm (mschramm@stanford.edu)
 
+''' 
+	here are examples of how to use encoding, doooo not delete or I'll cry
+	if u"\u00F3" in span_sent:
+		print span_sent.encode('utf-8')
+	if 'Elmar' in eng_sent:
+		eng_sent = eng_sent.replace(" " + u'\u2019' + " ", "'")
+		print eng_sent.encode('utf-8')
+'''
+
 import itertools as it
 import re, collections, string, io, operator
+import codecs
 
 # Utility functions
 def loadList(file_name):
@@ -40,6 +50,7 @@ class EMTrainer():
 		self.sample = []
 		self.keys = []
 		self.eta = .01
+		self.conv_per = 90
 	
 	def normalizeTable(self, table):
 		for span_word in table:
@@ -132,12 +143,6 @@ class EMTrainer():
 						break
 					self.keys.append(key)
 					counter += 1
-			'''
-			sample = []
-			sample.append(self.transProbs['casa']['house'])
-			#sample.append(self.transProbs['cuchara']['spoon'])
-			sample.append(self.transProbs['el']['the'])
-			'''
 			counter = 0
 			for y in xrange(len(self.keys)):
 				mk = max(self.transProbs[self.keys[y]], key=self.transProbs[self.keys[y]].get)
@@ -148,99 +153,40 @@ class EMTrainer():
 				self.prev[y] = v
 			print 'counter ', counter
 			print 'iter ', i
-			if counter >= 90:
+			if counter >= self.conv_per:
 				break
-			'''
-			stop = True
-			for j in xrange(len(sample)):
-				if abs(sample[j] - self.prev[j]) > self.eta:	
-					self.prev = sample
-					stop = False
-			'''
-			#builds masterlist	
-		'''
-		# masterEngWords = []
-		# masterSpanWords = []
-			for word in span_words:
-				if word not in masterSpanWords:
-					masterSpanWords.append(word)
-			for word in eng_words:
-				if word not in masterEngWords:
-					masterEngWords.append(word)
-			if i % 1000 == 0:
-				print i
-		print 'out of loop 1'
-		length = len(masterEngWords)
-		#itiializes translation table
-		for word in masterSpanWords:
-			self.transCounts[word] = {}
-			self.transProbs[word] = {}
-			for eng_word in masterEngWords:
-				self.transCounts[word][eng_word] = 1.0/length
-				self.transProbs[word][eng_word] = 0.0
-		
-		print 'out of loop 2'
-		'''
-
-
-
-
-	def wordTrans(self):
-		for i in xrange(len(self.spanishList)):
-			print i	
-			eng_sent = self.englishList[i].replace(" " + u'\u2019' + " ", "'")
-			#.translate(string.maketrans("",""), string.punctuation) (translate line not needed with
-			# regexes below, also stopped compling for some reason replace handles '
-			#re.sub(r'[^\x00-\x7F]+','\'', eng_sent)
-
-			span_sent = self.spanishList[i]
-			eng_words = eng_sent.split(" ")
-			span_words = span_sent.split(" ")
-
-			#loops below make bag of words, special cases yet to be accounted for 1 letter accented words? weird markers such as &quote
-			#word.decode("utf-8") # instead of just word
-			for word in eng_words:
-				if re.search('[a-zA-Z]', word) == None:
-					eng_words.remove(word)
-			for word in span_words:
-                                if re.search('[a-zA-Z]', word) == None:
-                                        span_words.remove(word)
-			for span_word in span_words:
-				if span_word.encode('utf-8') not in self.transCounts:
-                    			self.transCounts[span_word.encode('utf-8')] = collections.Counter()
-				length = len(eng_words)
-				for i in xrange(length):
-					self.transCounts[span_word.encode('utf-8')][eng_words[i].encode('utf-8')] += 1
-					if i < length - 1:
-						self.transCounts[span_word.encode("utf-8")][eng_words[i].encode("utf-8") + " " + eng_words[i + 1].encode("utf-8")] += 1
-					if i < length - 2:
-                                                self.transCounts[span_word.encode("utf-8")][eng_words[i].encode("utf-8") + " " + eng_words[i + 1].encode("utf-8") + " " +eng_words[i+2].encode("utf-8")] += 1
 			
-			''' here are examples of how to use encoding, doooo not delete or I'll cry
-			if u"\u00F3" in span_sent:
-				print span_sent.encode('utf-8')
-			if 'Elmar' in eng_sent:
-				eng_sent = eng_sent.replace(" " + u'\u2019' + " ", "'")
-				print eng_sent.encode('utf-8')
-			'''
-		#print self.transCounts['de']
-	def normalize(self):
-		i = 0
-		print self.transCounts
-		print "halp"
-		self.transProbs = dict(self.transCounts)
-		#print self.transProbs['de']
-		for span_word in self.transProbs:
-			mag = 0
-			for eng_word in self.transCounts[span_word]:
-				mag += self.transCounts[span_word][eng_word]
-			for eng_word in self.transProbs[span_word]:
-				self.transProbs[span_word][eng_word] = float(self.transProbs[span_word][eng_word])/float(mag)
-			i += 1
-			print i
-		for key in self.transProbs:
-			print key
-		print self.transProbs['comida']
+def testModel():
+	#es_dev = loadList('es-en/dev/newstest2012.es')
+	es_dev = loadList('es-en/test/newstest2013.es')
+	file_content = ''
+	life_count = 0
+	for span_line in es_dev:
+		span_line = removeNonAlphas(span_line.split(" "))
+
+		translated_line = ''
+		for word in span_line:
+			if word in x.transProbs:
+				translated_word = max(x.transProbs[word], key=x.transProbs[word].get).encode('utf8')
+			else:
+				translated_word = word.encode('utf8')
+			translated_line += (translated_word + ' ')
+		life_count += 1
+		if life_count % 1000 == 0:
+			print translated_line
+		translated_line.strip()
+		translated_line += '.\n'
+		file_content += translated_line.decode('utf8')
+
+	open('Output.txt', 'w').close()
+	text_file = codecs.open("Output.txt", "w", "utf-8")
+	text_file.write(file_content)
+	text_file.close()
+
 x = EMTrainer()
 x.alignMonster()
-#x.normalize()
+testModel()
+
+
+
+

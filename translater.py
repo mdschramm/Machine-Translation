@@ -4,7 +4,7 @@
 # David Beam (dbeam@stanford.edu) Mark Schramm (mschramm@stanford.edu)
 
 import itertools as it
-import re, collections, string, io
+import re, collections, string, io, operator
 
 # Utility functions
 def loadList(file_name):
@@ -34,8 +34,12 @@ class EMTrainer():
 		self.transCounts = collections.defaultdict(lambda: collections.defaultdict(lambda: 0.0))
 		self.transProbs = collections.defaultdict(lambda: collections.defaultdict(lambda: 0.0))
 		self.transProbsZeros = None
-		self.Iterations = 4
+		self.Iterations = 20
 		self.eng_vocab = set([])
+		self.prev = [float('inf')] * 100
+		self.sample = []
+		self.keys = []
+		self.eta = .01
 	
 	def normalizeTable(self, table):
 		for span_word in table:
@@ -120,8 +124,39 @@ class EMTrainer():
 		
 		for i in range(self.Iterations):
 			self.updateTable()
-			print self.transProbs['casa']['house']
-
+			if i == 0:
+				counter = 0
+				for key in self.transProbs:
+					print key.encode('utf-8')
+					if counter == 100:
+						break
+					self.keys.append(key)
+					counter += 1
+			'''
+			sample = []
+			sample.append(self.transProbs['casa']['house'])
+			#sample.append(self.transProbs['cuchara']['spoon'])
+			sample.append(self.transProbs['el']['the'])
+			'''
+			counter = 0
+			for y in xrange(len(self.keys)):
+				mk = max(self.transProbs[self.keys[y]], key=self.transProbs[self.keys[y]].get)
+				v = self.transProbs[self.keys[y]][mk]
+				print self.keys[y].encode('utf8'), v, abs(v - self.prev[y])
+				if abs(v - self.prev[y]) < self.eta:
+					counter += 1
+				self.prev[y] = v
+			print 'counter ', counter
+			print 'iter ', i
+			if counter >= 90:
+				break
+			'''
+			stop = True
+			for j in xrange(len(sample)):
+				if abs(sample[j] - self.prev[j]) > self.eta:	
+					self.prev = sample
+					stop = False
+			'''
 			#builds masterlist	
 		'''
 		# masterEngWords = []

@@ -6,55 +6,126 @@
 import itertools as it
 import re, collections, string, io
 
+# Utility functions
 def loadList(file_name):
     """Loads text files as lists of lines. Used in evaluation."""
     with io.open(file_name, "r", encoding="utf-8") as f:
 	l = [line.strip() for line in f]
     return l
  
-def normalize(vec):
+def normalizeVec(vec):
 	mag = sum(vec)
 	for i in xrange(len(vec)):
 		vec[i] = vec[i]/mag
+
+def removeNonAlphas(sentence):
+	for word in sentence:
+		if not re.search('[a-zA-Z]', word):
+			sentence.remove(word)
+	return sentence
+
 class EMTrainer():
+
 	def __init__(self):
 		self.englishList = loadList("es-en/train/europarl-v7.es-en.en")
 		self.spanishList = loadList("es-en/train/europarl-v7.es-en.es")
-		self.transCounts = {}#collections.Counter()
-		self.transProbs = {}
-	def alignMonster(self):
-		masterEngWords = []
-		masterSpanWords = []
-		#builds list for table of unique words, processes sentences for later use
+
+		# default dicts, so no need to check if an element exists in a dict
+		self.transCounts = collections.defaultdict(lambda: collections.defaultdict(lambda: 0.0))
+		self.transProbs = collections.defaultdict(lambda: collections.defaultdict(lambda: 0.0))
+		self.transProbsZeros = None
+		self.Iterations = 4
+		self.eng_vocab = set([])
+	
+	def normalizeTable(self, table):
+		for span_word in table:
+			row_sum = sum(table[span_word].values())
+			for eng_word in table[span_word]:
+				table[span_word][eng_word] /= row_sum # len(self.eng_vocab)
+
+
+	def initializeTables(self):
 		for i in xrange(len(self.spanishList)):
-                        eng_sent = self.englishList[i].replace(" " + u'\u2019' + " ", "'")
+			eng_sent = self.englishList[i].replace(" " + u'\u2019' + " ", "'")
 			span_sent = self.spanishList[i]
-                        eng_words = eng_sent.split(" ")
-                        span_words = span_sent.split(" ")
-			for word in eng_words:
-                                if re.search('[a-zA-Z]', word) == None:
-                                        eng_words.remove(word)
-                        for word in span_words:
-                                if re.search('[a-zA-Z]', word) == None:
-                                        span_words.remove(word)
+			eng_words = eng_sent.split(" ")
+			span_words = span_sent.split(" ")
+					
 			#updates sentence in original list to contained stripped punctuation free words
-			self.englishList[i] = eng_words
-			self.spanishList[i] = span_words
-			for word in span_words:
-				if word not in self.transCounts:
-					self.transCounts[word] = {}
-					self.transProbs[word] = {}
+			self.englishList[i] = removeNonAlphas(eng_words)
+			self.spanishList[i] = removeNonAlphas(span_words)
+			
+			for span_word in span_words:
 				for eng_word in eng_words:
-					if eng_word not in self.transCounts[word]:
-						self.transCounts[word][eng_word] = 1.0
-						self.transProbs[word][eng_word] = 0.0
+
+						# in sets all elements are unique, so each word appears only once
+						self.eng_vocab.add(eng_word)
+
+						self.transCounts[span_word][eng_word] = 1.0
+						self.transProbs[span_word][eng_word] = 0.0
+
 			if i % 1000 == 0:
-                                print i
-		for span in self.transCounts:
-			for eng_word in self.transCounts[span]:
-				self.transCounts[span][eng_word] = 1.0/len(self.transCounts[span])
-			#builds masterlist
-			'''
+				print len(self.eng_vocab)
+				#print i
+
+		self.transProbsZeros = self.transProbs.copy()
+		
+		# Normalization step
+		self.normalizeTable(self.transCounts)
+
+	def sentenceProdAndSums(self, eng_words, span_words):
+		prod = 1.0
+		sums = []
+		for ej in eng_words:
+			term = 0.0
+			for si in span_words:
+				term += self.transCounts[si][ej]
+			sums.append(term)
+			prod *= term
+		return prod, sums
+
+
+	'''
+	One iteration of the EM algorithm. Sets transCounts to the new 
+	updated probability table, and resets transProbs to a list of 0's
+	'''
+	def updateTable(self):
+		
+		length = len(self.englishList)
+		for x in xrange(length):
+			eng_words = self.englishList[x]
+			span_words = self.spanishList[x]
+
+			# moved out function that calculates the product and individual sums for each english word
+			prod, sums = self.sentenceProdAndSums(eng_words, span_words)
+
+			for i in xrange(len(eng_words)):
+				pairs = []
+				for j in xrange(len(span_words)):
+					pairs.append(self.transCounts[span_words[j]][eng_words[i]] * prod/sums[i])
+				normalizeVec(pairs)
+				for j in xrange(len(span_words)):
+					self.transProbs[span_words[j]][eng_words[i]] += pairs[j]
+			
+			#print 'transProbs ', x
+		
+		self.normalizeTable(self.transProbs)
+		self.transCounts = self.transProbs.copy()
+		self.transProbs = self.transProbsZeros.copy()
+
+	def alignMonster(self):
+
+		#builds list for table of unique words, processes sentences for later use		
+		self.initializeTables()
+		
+		for i in range(self.Iterations):
+			self.updateTable()
+			print self.transProbs['casa']['house']
+
+			#builds masterlist	
+		'''
+		# masterEngWords = []
+		# masterSpanWords = []
 			for word in span_words:
 				if word not in masterSpanWords:
 					masterSpanWords.append(word)
@@ -75,30 +146,12 @@ class EMTrainer():
 		
 		print 'out of loop 2'
 		'''
-		length = len(self.englishList)
-		for x in xrange(length):
-			eng_words = self.englishList[x]
-			span_words = self.spanishList[x]
-			prod = 1.0
-			sums = []
-			for ej in eng_words:
-				term = 0.0
-				for si in span_words:
-					term += self.transCounts[si][ej]
-				sums.append(term)
-				prod *= term
-			for i in xrange(len(eng_words)):
-				pairs = []
-				for j in xrange(len(span_words)):
-					pairs.append(self.transCounts[span_words[j]][eng_words[i]] * prod/sums[i])
-				normalize(pairs)
-				for j in xrange(len(span_words)):
-					self.transProbs[span_words[j]][eng_words[i]] += pairs[j]
-			print 'transProbs ', x
-		#print self.transCounts['de']
-		print self.transProbs['el']
+
+
+
+
 	def wordTrans(self):
-		for i in xrange(1000):#xrange(len(self.spanishList)):
+		for i in xrange(len(self.spanishList)):
 			print i	
 			eng_sent = self.englishList[i].replace(" " + u'\u2019' + " ", "'")
 			#.translate(string.maketrans("",""), string.punctuation) (translate line not needed with
@@ -127,6 +180,7 @@ class EMTrainer():
 						self.transCounts[span_word.encode("utf-8")][eng_words[i].encode("utf-8") + " " + eng_words[i + 1].encode("utf-8")] += 1
 					if i < length - 2:
                                                 self.transCounts[span_word.encode("utf-8")][eng_words[i].encode("utf-8") + " " + eng_words[i + 1].encode("utf-8") + " " +eng_words[i+2].encode("utf-8")] += 1
+			
 			''' here are examples of how to use encoding, doooo not delete or I'll cry
 			if u"\u00F3" in span_sent:
 				print span_sent.encode('utf-8')

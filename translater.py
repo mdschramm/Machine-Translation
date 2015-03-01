@@ -162,38 +162,37 @@ class EMTrainer():
 				break
 			
 def testModel():
-	es_dev = loadList('es-en/dev/newstest2012.es')
-	#es_dev = loadList('es-en/test/newstest2013.es')
+	#es_dev = loadList('es-en/dev/newstest2012.es')
+	es_dev = loadList('es-en/test/newstest2013.es')
 	LM = langModel()
 	file_content = ''
 	life_count = 0
 	for span_line in es_dev:
 		span_line = removeNonAlphas(span_line.split(" "))
 
-		translated_line = []
+		translated_line = ''
 		prev = ''
 		doublePrev = ''
 		switch = 0
 		for word in span_line:
-			if len(translated_line) > 1:
+			if doublePrev != '':
 				if word in x.transProbs and len(x.transProbs[word]) >= 5:
 					pos = heapq.nlargest(5, x.transProbs[word], key=x.transProbs[word].get)
 					maxScore = -float('inf')
 					for p in pos:
-						#score = LM.score([doublePrev, 
-						score = LM.score([prev, p]) + math.log(x.transProbs[word][p])
+						score = LM.score([doublePrev, prev, p]) + math.log(x.transProbs[word][p])
 						#score2 = LM.score([doublePrev, p, prev]) + math.log(x.transProbs[word][p])
 						#switch = 0
 						#if score2 > score:
-							#switch = 1
+						#	switch = 1
 						#score = max(score, score2)
 						if score > maxScore:
 							translated_word = p.encode('utf8')
 							maxScore = score
 				else:
 					translated_word = word.encode('utf8')
-					'''	
-			elif len(translated_line) == 1:
+					
+			elif prev != '':
 				if word in x.transProbs and len(x.transProbs[word]) >= 5:
                                         pos = heapq.nlargest(5, x.transProbs[word], key=x.transProbs[word].get)
                                         maxScore = -float('inf')
@@ -202,13 +201,13 @@ def testModel():
 						#score2 = LM.score([p, prev]) + math.log(x.transProbs[word][p])
                                                 #switch = 0
                                                 #if score2 > score:
-                                                #       switch = 2
+                                                # switch = 1
                                                 #score = max(score, score2)
                                                 if score > maxScore:
                                                         translated_word = p.encode('utf8')
                                                         maxScore = score
 				else:			
-					translated_word = word.encode('utf8')'''
+					translated_word = word.encode('utf8')
 			else:
 				if word in x.transProbs:
 					translated_word = max(x.transProbs[word], key=x.transProbs[word].get).encode('utf8')
@@ -217,36 +216,39 @@ def testModel():
 			#if not re.search('[a-zA-Z]', translated_word):
 				#continue 
 			if translated_word.lower() != prev.lower():
-				translated_line.append(translated_word)
-				'''
-				if switch == 1:
-					length = len(translated_line)
-					translated_line[length-1], translated_line[length-2] = translated_line[length-2], translated_line[length-1]
+				translated_line += (translated_word + ' ')
+				#else:
+				#	translated_line += (translated_word)
+				#	words = translated_line.split(" ")
+				#	words[len(words) - 1], words[len(words) - 2] = words[len(words) - 2], words[len(words) - 1]
+				#	translated_line = ' '.join(words)
+				#	translated_line += ' '
+					#translated_line[length-1], translated_line[length-2] = translated_line[length-2], translated_line[length-1]
 				#if switch == 2:
 				#	translated_line[0], translated_line[1] = translated_line[1], translated_line[0]
 			switch = 0
 			doublePrev = prev
-			'''
 			prev = translated_word
 		life_count += 1
 		if life_count % 100 == 0:
 			print life_count
-		translated_line = ' '.join(translated_line)
+		#translated_line = ' '.join(translated_line)
 		if life_count % 1000 == 0:
 			print translated_line
 		#optimize(translated_line, LM)
+		transalted_line = translated_line.strip()
 		translated_line += '.\n'
 		file_content += translated_line.decode('utf8')
 
-	open('OutputDev.txt', 'w').close()
-	text_file = codecs.open("OutputDev.txt", "w", "utf-8")
+	open('OutputTest.txt', 'w').close()
+	text_file = codecs.open("OutputTest.txt", "w", "utf-8")
 	text_file.write(file_content)
 	text_file.close()
 
 def langModel():
 	trainPath = "es-en/train/europarl-v7.es-en.en"#'holbrook-tagged-train.dat'
   	trainingCorpus = HolbrookCorpus(trainPath)
-	LM = LaplaceBigramLanguageModel(trainingCorpus)
+	LM =  LaplaceBigramLanguageModel(trainingCorpus)
 	return LM
 def optimize(line, LM):
 	words = line.split(' ')
